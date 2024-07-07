@@ -1,0 +1,21 @@
+name: build.yml
+
+on:
+  push:
+    branches:
+      - 'master'
+  pull_request:
+    branches:
+      - 'master'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4.1.4
+    - name: Setup NuGet
+      uses: NuGet/setup-nuget@v2.0.0
+    - name: Pack Package
+      run: nuget.exe pack .\TTS.sqlean\TTS.sqlean.nuspec
+    - name: Tree
+      run: tree
