@@ -56,7 +56,7 @@ jobs:
       shell: cmd 
     - name: Code Signing (Windows)
       run: |
-        nuget sign TTS.sqlean.nupkg -CertificateFingerprint -CertificatePath ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }} -Timestamper http://timestamp.digicert.com -TimestampHashAlgorithm SHA256 -HashAlgorithm SHA256
+        nuget sign TTS.sqlean.nupkg -CertificateFingerprint ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }} -Timestamper http://timestamp.digicert.com -TimestampHashAlgorithm SHA256 -HashAlgorithm SHA256
     - name: UploadArtifacts
       uses: actions/upload-artifact@v4.3.3
       env:
