@@ -24,14 +24,6 @@ Please refer to the [sqlean's](https://github.com/nalgeon/sqlean) documentation.
 # Issues
 Feel free to add issues, though most probably are related to sqlean or it's dependencies.
 
-# Manual build
-## (Windows) download latest NuGet CLI tool
-Get the latest NuGet CLI Tool at `https://dist.nuget.org/win-x86-commandline/latest/nuget.exe`
-Place it the project's root.
-
-## pack the NuGet package 
-`./nuget.exe pack TTS.sqlean/TTS.sqlean.nuspec`
-
 # License
 Copyright 2021-2024 [Anton Zhiyanov](https://antonz.org/), [Contributors of sqlean](https://github.com/nalgeon/sqlean/graphs/contributors) and [Third-party Authors](https://github.com/nalgeon/sqlean/blob/main/docs/third-party.md).
 
