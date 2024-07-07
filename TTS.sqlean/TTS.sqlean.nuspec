@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>TTS.sqlean</id>
+    <version>0.1.1</version>
+    <authors>johann.wiebe</authors>
+    <owners></owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="expression">MIT</license>
+    <projectUrl>http://project_url_here_or_delete_this_line/</projectUrl>
+    <description>Package description</description>
+    <releaseNotes>Summary of changes made in this release of the package.</releaseNotes>
+    <copyright>Copyright 2024</copyright>
+    <tags>Tag1 Tag2</tags>
+    <dependencies>
+      <group targetFramework=".NETStandard2.1">
+        <dependency id="System.Data.SQLite.Core" version="*" />
+      </group>
+    </dependencies>
+  </metadata>
+</package>
