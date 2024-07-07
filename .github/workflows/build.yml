@@ -16,6 +16,6 @@ jobs:
     - name: Setup NuGet
       uses: NuGet/setup-nuget@v2.0.0
     - name: Pack Package
-      run: nuget.exe pack .\TTS.sqlean\TTS.sqlean.nuspec
+      run: nuget.exe pack .\TTS.sqlean\TTS.sqlean.nuspec -OutputFileNamesWithoutVersion
     - name: Tree
       run: tree /f
