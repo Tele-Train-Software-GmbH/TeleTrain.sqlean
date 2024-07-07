@@ -18,4 +18,4 @@ jobs:
     - name: Pack Package
       run: nuget.exe pack .\TTS.sqlean\TTS.sqlean.nuspec
     - name: Tree
-      run: tree
+      run: tree /f
