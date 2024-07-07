@@ -14,7 +14,7 @@
     <tags>SQLite sqlean</tags>
     <dependencies>
       <group targetFramework=".NETStandard2.1">
-        <dependency id="System.Data.SQLite.Core" version="*" />
+        <dependency id="System.Data.SQLite.Core" version="1.0.118" />
       </group>
     </dependencies>
   </metadata>

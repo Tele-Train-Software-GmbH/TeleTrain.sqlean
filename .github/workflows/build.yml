@@ -26,7 +26,7 @@ jobs:
     - name: Setup NuGet
       uses: NuGet/setup-nuget@v2.0.0
     - name: Pack Package
-      run: nuget.exe pack .\TTS.sqlean\TeleTrain.sqlean.nuspec -OutputFileNamesWithoutVersion
+      run: nuget.exe pack .\TeleTrain.sqlean\TeleTrain.sqlean.nuspec -OutputFileNamesWithoutVersion
     - name: Tree
       run: tree /f
     - name: Setup Certificate (Windows)
