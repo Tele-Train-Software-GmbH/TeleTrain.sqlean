@@ -26,7 +26,7 @@ jobs:
     - name: Setup NuGet
       uses: NuGet/setup-nuget@v2.0.0
     - name: Pack Package
-      run: nuget.exe pack .\TTS.sqlean\TTS.sqlean.nuspec -OutputFileNamesWithoutVersion
+      run: nuget.exe pack .\TTS.sqlean\TeleTrain.sqlean.nuspec -OutputFileNamesWithoutVersion
     - name: Tree
       run: tree /f
     - name: Setup Certificate (Windows)
@@ -56,12 +56,12 @@ jobs:
       shell: cmd 
     - name: Code Signing (Windows)
       run: |
-        nuget sign TTS.sqlean.nupkg -CertificateFingerprint ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }} -Timestamper http://timestamp.digicert.com -TimestampHashAlgorithm SHA256 -HashAlgorithm SHA256
+        nuget sign TeleTrain.sqlean.nupkg -CertificateFingerprint ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }} -Timestamper http://timestamp.digicert.com -TimestampHashAlgorithm SHA256 -HashAlgorithm SHA256
     - name: UploadArtifacts
       uses: actions/upload-artifact@v4.3.3
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        name: TTS.sqlean.nupkg
-        path: TTS.sqlean.nupkg
+        name: TeleTrain.sqlean.nupkg
+        path: TeleTrain.sqlean.nupkg
         retention-days: 7

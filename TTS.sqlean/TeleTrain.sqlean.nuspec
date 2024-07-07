@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
   <metadata>
-    <id>TTS.sqlean</id>
-    <version>0.1.2</version>
+    <id>TeleTrain.sqlean</id>
+    <version>0.1.3</version>
     <authors>TeleTrain</authors>
     <owners></owners>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
