@@ -8,6 +8,4 @@ Get the latest NuGet CLI Tool at `https://dist.nuget.org/win-x86-commandline/lat
 Place it the project's root.
 
 ## pack the NuGet package 
-`cd` into `Package` and execute `../nuget.exe pack`
-
-If you wouldn't change the directory you would include irrelevant stuff to the resulting package. 
+`./nuget.exe pack TTS.sqlean/TTS.sqlean.nuspec`
