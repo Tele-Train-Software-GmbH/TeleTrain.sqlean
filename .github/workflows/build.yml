@@ -13,9 +13,55 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v4.1.4
+    - name: set Timezone (Windows)
+      run: tzutil /s "W. Europe Standard Time"
+    - name: Keylockertools Cache
+      uses: actions/cache@v4.0.2
+      id: KSPcache
+      with:
+        path: D:\Keylocker-x64.msi
+        key: ${{ runner.os }}-Keylocker
+        restore-keys: |
+          ${{ runner.os }}-Keylocker-
     - name: Setup NuGet
       uses: NuGet/setup-nuget@v2.0.0
     - name: Pack Package
       run: nuget.exe pack .\TTS.sqlean\TTS.sqlean.nuspec -OutputFileNamesWithoutVersion
     - name: Tree
       run: tree /f
+    - if: name: Setup Certificate (Windows)
+      run: |
+        echo "${{ secrets.SM_CLIENT_CERT_FILE_B64 }}" | base64 --decode > /d/Certificate_pkcs12.p12
+        echo "SM_HOST=${{ secrets.SM_HOST }}" >> "$GITHUB_ENV"
+        echo "SM_API_KEY=${{ secrets.SM_API_KEY }}" >> "$GITHUB_ENV" 
+        echo "SM_CLIENT_CERT_FILE=D:\\Certificate_pkcs12.p12" >> "$GITHUB_ENV"
+        echo "SM_CLIENT_CERT_PASSWORD=${{ secrets.SM_CLIENT_CERT_PASSWORD }}" >> "$GITHUB_ENV"
+        echo "C:\Program Files (x86)\Windows Kits\10\App Certification Kit" >> $GITHUB_PATH
+        echo "C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.8 Tools" >> $GITHUB_PATH
+        echo "C:\Program Files\DigiCert\DigiCert Keylocker Tools" >> $GITHUB_PATH
+      shell: bash
+    - if: (steps.KSPcache.outputs.cache-hit != 'true')
+      name: Download Keylocker KSP (Windows)
+      run: | 
+        curl -X GET  https://one.digicert.com/signingmanager/api-ui/v1/releases/Keylockertools-windows-x64.msi/download -H "x-api-key:${{ secrets.SM_API_KEY }}" -o D:\Keylocker-x64.msi 
+      shell: cmd
+    - name: Setup Keylocker KSP (Windows)
+      run: | 
+        msiexec /i D:\Keylocker-x64.msi /quiet /qn
+        smksp_registrar.exe list 
+        smctl.exe keypair ls 
+        C:\Windows\System32\certutil.exe -csp "DigiCert Signing Manager KSP" -key -user
+        smctl healthcheck
+        smctl windows certsync
+      shell: cmd 
+    - name: Code Signing (Windows)
+      run: |
+        nuget sign TTS.sqlean.nupkg -CertificateFingerprint -CertificatePath ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }} -Timestamper http://timestamp.digicert.com -TimestampHashAlgorithm SHA256 -HashAlgorithm SHA256
+    - name: UploadArtifacts
+      uses: actions/upload-artifact@v4.3.3
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        name: TTS.sqlean.nupkg
+        path: TTS.sqlean.nupkg
+        retention-days: 7
