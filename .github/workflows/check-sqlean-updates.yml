@@ -232,8 +232,7 @@ jobs:
           
           # Start building files section
           pwd
-          tree .
-
+          tree . || true
           echo "  <files>" >> "$NUSPEC_FILE"
           echo "    <!-- Documentation -->" >> "$NUSPEC_FILE"
           echo "    <file src=\"docs\README.md\" target=\"docs\\" />" >> "$NUSPEC_FILE"
