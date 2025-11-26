@@ -237,7 +237,6 @@ jobs:
           echo "  <files>" >> "$NUSPEC_FILE"
           echo "    <!-- Documentation -->" >> "$NUSPEC_FILE"
           echo "    <file src=\"docs\README.md\" target=\"docs\\" />" >> "$NUSPEC_FILE"
-          echo "" >> "$NUSPEC_FILE"
           echo "    <!-- Runtime native libraries -->" >> "$NUSPEC_FILE"
           
           echo ""
