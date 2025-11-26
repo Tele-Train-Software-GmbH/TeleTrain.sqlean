@@ -12,11 +12,11 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4.1.4
+    - uses: actions/checkout@v4
     - name: set Timezone (Windows)
       run: tzutil /s "W. Europe Standard Time"
     - name: Keylockertools Cache
-      uses: actions/cache@v4.0.2
+      uses: actions/cache@v4
       id: KSPcache
       with:
         path: D:\Keylocker-x64.msi
@@ -57,6 +57,13 @@ jobs:
     - name: Code Signing (Windows)
       run: |
         nuget sign TeleTrain.sqlean.nupkg -CertificateFingerprint ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }} -Timestamper http://timestamp.digicert.com -TimestampHashAlgorithm SHA256 -HashAlgorithm SHA256
+    - name: Verify Package Signature
+      run: |
+        nuget verify -Signatures TeleTrain.sqlean.nupkg
+    - name: Publish to NuGet
+      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+      run: |
+        nuget push TeleTrain.sqlean.nupkg -Source https://api.nuget.org/v3/index.json -ApiKey ${{ secrets.NUGET_API_KEY }} -SkipDuplicate
     - name: UploadArtifacts
       uses: actions/upload-artifact@v4.3.3
       env:

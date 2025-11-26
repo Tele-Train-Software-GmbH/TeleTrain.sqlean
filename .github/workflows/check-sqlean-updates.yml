@@ -1,0 +1,371 @@
+name: Update sqlean
+
+on:
+  schedule:
+    # Run daily at 9:00 AM UTC
+    - cron: '0 9 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get current version from nuspec
+        id: current-version
+        run: |
+          CURRENT_VERSION=$(grep -oP '(?<=<version>)[^<]+' TeleTrain.sqlean/TeleTrain.sqlean.nuspec)
+          echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT_VERSION"
+
+      - name: Get latest sqlean release
+        id: latest-release
+        run: |
+          RELEASE_DATA=$(curl -s https://api.github.com/repos/nalgeon/sqlean/releases/latest)
+          LATEST_VERSION=$(echo "$RELEASE_DATA" | jq -r '.tag_name')
+          RELEASE_NOTES=$(echo "$RELEASE_DATA" | jq -r '.body')
+          
+          echo "latest=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "Latest sqlean version: $LATEST_VERSION"
+          
+          # Save release notes to file for later use
+          echo "$RELEASE_NOTES" > /tmp/release_notes.txt
+
+      - name: Compare versions
+        id: compare
+        run: |
+          CURRENT="${{ steps.current-version.outputs.current }}"
+          LATEST="${{ steps.latest-release.outputs.latest }}"
+          
+          echo "Current version: $CURRENT"
+          echo "Latest sqlean version: $LATEST"
+          
+          if [ "$CURRENT" != "$LATEST" ]; then
+            echo "update_available=true" >> $GITHUB_OUTPUT
+            echo "::notice::New sqlean version available: $LATEST (current: $CURRENT)"
+          else
+            echo "update_available=false" >> $GITHUB_OUTPUT
+            echo "::notice::Already using latest version: $CURRENT"
+          fi
+
+      - name: Check if PR already exists
+        if: steps.compare.outputs.update_available == 'true'
+        id: check-pr
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const branchName = 'update-sqlean-${{ steps.latest-release.outputs.latest }}';
+            
+            const pulls = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: `${context.repo.owner}:${branchName}`
+            });
+            
+            if (pulls.data.length > 0) {
+              console.log(`PR already exists: ${pulls.data[0].html_url}`);
+              return 'true';
+            } else {
+              return 'false';
+            }
+
+      - name: Download and extract sqlean binaries
+        if: steps.compare.outputs.update_available == 'true' && steps.check-pr.outputs.result == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const { execSync } = require('child_process');
+            
+            const version = '${{ steps.latest-release.outputs.latest }}';
+            
+            // Get release assets from GitHub API
+            const release = await github.rest.repos.getReleaseByTag({
+              owner: 'nalgeon',
+              repo: 'sqlean',
+              tag: version
+            });
+            
+            // Filter assets that match sqlean-*.zip pattern
+            const sqleanAssets = release.data.assets.filter(asset => 
+              asset.name.startsWith('sqlean-') && asset.name.endsWith('.zip')
+            );
+            
+            console.log(`Found ${sqleanAssets.length} sqlean assets:`);
+            sqleanAssets.forEach(asset => console.log(`  - ${asset.name}`));
+            
+            // Create temp directory
+            const tmpDir = '/tmp/sqlean';
+            if (!fs.existsSync(tmpDir)) {
+              fs.mkdirSync(tmpDir, { recursive: true });
+            }
+            
+            // Download each asset
+            for (const asset of sqleanAssets) {
+              console.log(`\nDownloading ${asset.name}...`);
+              
+              try {
+                execSync(
+                  `curl -L -o "${tmpDir}/${asset.name}" "${asset.browser_download_url}"`,
+                  { stdio: 'inherit' }
+                );
+                console.log(`✓ Downloaded ${asset.name}`);
+              } catch (error) {
+                console.error(`⚠ Failed to download ${asset.name}: ${error.message}`);
+              }
+            }
+            
+            // Store asset names for the next step
+            const assetNames = sqleanAssets.map(a => a.name).join(',');
+            fs.writeFileSync('/tmp/sqlean_assets.txt', assetNames);
+
+      - name: Update runtime binaries
+        if: steps.compare.outputs.update_available == 'true' && steps.check-pr.outputs.result == 'false'
+        run: |
+          cd /tmp/sqlean
+          
+          # Read asset names
+          ASSETS=$(cat /tmp/sqlean_assets.txt)
+          IFS=',' read -ra ASSET_ARRAY <<< "$ASSETS"
+          
+          echo "Processing ${#ASSET_ARRAY[@]} assets..."
+          
+          # Clean existing runtime directories
+          echo "Cleaning existing binaries..."
+          rm -rf $GITHUB_WORKSPACE/TeleTrain.sqlean/runtimes/*/native/*
+          
+          # Define platform mappings: filename pattern -> runtime directory -> library name
+          declare -A PLATFORM_MAP=(
+            ["sqlean-linux-x64"]="linux-x64:sqlean.so"
+            ["sqlean-linux-arm64"]="linux-arm64:sqlean.so"
+            ["sqlean-macos-x64"]="osx-x64:sqlean.dylib"
+            ["sqlean-macos-arm64"]="osx-arm64:sqlean.dylib"
+            ["sqlean-win-x64"]="win-x64:sqlean.dll"
+            ["sqlean-win-x86"]="win-x86:sqlean.dll"
+          )
+          
+          # Track which platforms were updated
+          UPDATED_PLATFORMS=()
+          
+          # Process each downloaded asset
+          for asset_file in "${ASSET_ARRAY[@]}"; do
+            # Remove .zip extension to get the platform identifier
+            platform_key="${asset_file%.zip}"
+            
+            if [[ -n "${PLATFORM_MAP[$platform_key]}" ]]; then
+              IFS=':' read -r runtime_dir lib_name <<< "${PLATFORM_MAP[$platform_key]}"
+              
+              echo ""
+              echo "Processing $asset_file -> $runtime_dir..."
+              
+              # Extract the zip file
+              extract_dir="${platform_key}-extracted"
+              unzip -q "$asset_file" -d "$extract_dir"
+              
+              # Create runtime directory
+              target_dir="$GITHUB_WORKSPACE/TeleTrain.sqlean/runtimes/$runtime_dir/native"
+              mkdir -p "$target_dir"
+              
+              # Copy the library file
+              if [ -f "$extract_dir/$lib_name" ]; then
+                cp "$extract_dir/$lib_name" "$target_dir/"
+                echo "✓ Updated $runtime_dir ($lib_name)"
+                UPDATED_PLATFORMS+=("$runtime_dir")
+              else
+                echo "⚠ Warning: $lib_name not found in $asset_file"
+              fi
+            else
+              echo "⚠ Skipping unknown asset: $asset_file"
+            fi
+          done
+          
+          # Remove any runtime directories that weren't updated (no longer supported)
+          echo ""
+          echo "Checking for obsolete platform directories..."
+          for runtime_dir in $GITHUB_WORKSPACE/TeleTrain.sqlean/runtimes/*/; do
+            dir_name=$(basename "$runtime_dir")
+            if [[ ! " ${UPDATED_PLATFORMS[@]} " =~ " ${dir_name} " ]]; then
+              echo "✓ Removing obsolete platform: $dir_name"
+              rm -rf "$runtime_dir"
+            fi
+          done
+          
+          echo ""
+          echo "Summary: Updated ${#UPDATED_PLATFORMS[@]} platforms"
+          printf '  - %s\n' "${UPDATED_PLATFORMS[@]}"
+          
+          # Save platform list for PR description
+          printf '%s\n' "${UPDATED_PLATFORMS[@]}" > /tmp/updated_platforms.txt
+
+      - name: Update nuspec version and files
+        if: steps.compare.outputs.update_available == 'true' && steps.check-pr.outputs.result == 'false'
+        run: |
+          VERSION="${{ steps.latest-release.outputs.latest }}"
+          NUSPEC_FILE="TeleTrain.sqlean/TeleTrain.sqlean.nuspec"
+          
+          # Update version
+          sed -i "s|<version>.*</version>|<version>$VERSION</version>|" "$NUSPEC_FILE"
+          
+          # Update release notes
+          RELEASE_NOTES="Updated to sqlean $VERSION. See https://github.com/nalgeon/sqlean/releases/tag/$VERSION for details."
+          sed -i "s|<releaseNotes>.*</releaseNotes>|<releaseNotes>$RELEASE_NOTES</releaseNotes>|" "$NUSPEC_FILE"
+          
+          # Read the list of updated platforms
+          mapfile -t UPDATED_PLATFORMS < /tmp/updated_platforms.txt
+          
+          # Remove existing files section if present
+          if grep -q "<files>" "$NUSPEC_FILE"; then
+            sed -i '/<files>/,/<\/files>/d' "$NUSPEC_FILE"
+          fi
+          
+          # Remove closing </package> tag temporarily
+          sed -i 's|</package>||' "$NUSPEC_FILE"
+          
+          # Start building files section
+          echo "  <files>" >> "$NUSPEC_FILE"
+          echo "    <!-- Documentation -->" >> "$NUSPEC_FILE"
+          echo "    <file src=\"docs\README.md\" target=\"docs\\" />" >> "$NUSPEC_FILE"
+          echo "" >> "$NUSPEC_FILE"
+          echo "    <!-- Runtime native libraries -->" >> "$NUSPEC_FILE"
+          
+          echo ""
+          echo "Building files section for platforms:"
+          for platform in "${UPDATED_PLATFORMS[@]}"; do
+            echo "  - $platform"
+            
+            # Determine file extension based on platform
+            if [[ "$platform" == linux-* ]]; then
+              ext="so"
+            elif [[ "$platform" == osx-* ]]; then
+              ext="dylib"
+            elif [[ "$platform" == win-* ]]; then
+              ext="dll"
+            else
+              echo "⚠ Unknown platform: $platform"
+              continue
+            fi
+            
+            echo "    <file src=\"runtimes\\${platform}\\native\\*.${ext}\" target=\"runtimes\\${platform}\\native\\" />" >> "$NUSPEC_FILE"
+          done
+          
+          # Close files section and package
+          echo "  </files>" >> "$NUSPEC_FILE"
+          echo "</package>" >> "$NUSPEC_FILE"
+          
+          echo "✓ Updated nuspec to version $VERSION with dynamic files section"
+
+      - name: Commit changes and create PR
+        if: steps.compare.outputs.update_available == 'true' && steps.check-pr.outputs.result == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const fs = require('fs');
+            
+            const version = '${{ steps.latest-release.outputs.latest }}';
+            const branchName = `update-sqlean-${version}`;
+            const currentVersion = '${{ steps.current-version.outputs.current }}';
+            
+            // Configure git
+            execSync('git config user.name "github-actions[bot]"');
+            execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
+            
+            // Create and checkout new branch
+            execSync(`git checkout -b ${branchName}`);
+            
+            // Stage all changes
+            execSync('git add .');
+            
+            // Commit
+            execSync(`git commit -m "Update sqlean to version ${version}"`);
+            
+            // Push branch
+            execSync(`git push origin ${branchName}`);
+            
+            // Read updated platforms list
+            let platformsList = 'Platform list unavailable';
+            try {
+              platformsList = fs.readFileSync('/tmp/updated_platforms.txt', 'utf8').trim();
+            } catch (e) {
+              console.log('Could not read platform list');
+            }
+            
+            // Create pull request body
+            const prBody = [
+              '## 🔄 Automated sqlean Update',
+              '',
+              'This PR automatically updates sqlean binaries to the latest version.',
+              '',
+              `**Current version:** ${currentVersion}`,
+              `**New version:** ${version}`,
+              '',
+              '### Changes',
+              '- ✅ Automatically detected and downloaded available platform binaries',
+              '- ✅ Updated all supported platforms in `runtimes/` directory',
+              '- ✅ Updated version in `TeleTrain.sqlean.nuspec`',
+              '- ✅ Updated release notes',
+              '- ✅ Removed any obsolete platform directories',
+              '',
+              '### Updated Platforms',
+              '```',
+              platformsList,
+              '```',
+              '',
+              '### Release Notes',
+              `See the full release notes at: https://github.com/nalgeon/sqlean/releases/tag/${version}`,
+              '',
+              '### Testing',
+              'Please review and test the updated binaries before merging.'
+            ].join('\n');
+            
+            // Create pull request
+            const pr = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Update sqlean to version ${version}`,
+              head: branchName,
+              base: 'master',
+              body: prBody
+            });
+            
+            // Add labels
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.data.number,
+              labels: ['sqlean-update', 'dependencies', 'automated']
+            });
+            
+            console.log(`✓ Created PR #${pr.data.number}: ${pr.data.html_url}`);
+
+      - name: Summary
+        run: |
+          echo "### sqlean Version Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Current version:** ${{ steps.current-version.outputs.current }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Latest sqlean version:** ${{ steps.latest-release.outputs.latest }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Update available:** ${{ steps.compare.outputs.update_available }}" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.compare.outputs.update_available }}" == "true" ]; then
+            if [ "${{ steps.check-pr.outputs.result }}" == "true" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "ℹ️ **PR already exists for this version**" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "✅ **Pull request created successfully!**" >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "See [release notes](https://github.com/nalgeon/sqlean/releases/tag/${{ steps.latest-release.outputs.latest }})" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Already up to date!" >> $GITHUB_STEP_SUMMARY
+          fi
