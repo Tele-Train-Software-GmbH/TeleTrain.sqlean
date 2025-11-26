@@ -2,14 +2,14 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
   <metadata>
     <id>TeleTrain.sqlean</id>
-    <version>0.1.5</version>
+    <version>0.28.0</version>
     <authors>TeleTrain</authors>
     <owners>TeleTrain</owners>
     <requireLicenseAcceptance>true</requireLicenseAcceptance>
     <license type="expression">MIT</license>
     <projectUrl>https://github.com/Tele-Train-Software-GmbH/TeleTrain.sqlean</projectUrl>
     <description>A simple NuGet Package wrapping SQLite sqlean extension libraries for easier usage within dotnet.</description>
-    <releaseNotes>Initial creation of the package.</releaseNotes>
+    <releaseNotes>Updated to sqlean 0.28.0. See https://github.com/nalgeon/sqlean/releases/tag/0.28.0 for details.</releaseNotes>
     <copyright>Copyright 2024</copyright>
     <tags>SQLite sqlean</tags>
     <readme>docs\README.md</readme>
@@ -19,4 +19,14 @@
       </group>
     </dependencies>
   </metadata>
+  <files>
+    <!-- Documentation -->
+    <file src="docs\README.md" target="docs\" />
+    <!-- Runtime native libraries -->
+    <file src="runtimes\linux-arm64\native\*.so" target="runtimes\linux-arm64\native\" />
+    <file src="runtimes\linux-x64\native\*.so" target="runtimes\linux-x64\native\" />
+    <file src="runtimes\osx-arm64\native\*.dylib" target="runtimes\osx-arm64\native\" />
+    <file src="runtimes\osx-x64\native\*.dylib" target="runtimes\osx-x64\native\" />
+    <file src="runtimes\win-x64\native\*.dll" target="runtimes\win-x64\native\" />
+  </files>
 </package>
