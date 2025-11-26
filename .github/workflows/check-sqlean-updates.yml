@@ -233,12 +233,12 @@ jobs:
           # Start building files section
           pwd
           tree . || true
-          echo "  <files>" >> "$NUSPEC_FILE"
-          echo "    <!-- Documentation -->" >> "$NUSPEC_FILE"
-          echo "    <file src=\"docs\README.md\" target=\"docs\\" />" >> "$NUSPEC_FILE"
-          echo "    <!-- Runtime native libraries -->" >> "$NUSPEC_FILE"
-          
-          echo ""
+          # Begin files section (static header) using printf to avoid quoting issues
+          printf '  <files>\n' >> "$NUSPEC_FILE"
+          printf '    <!-- Documentation -->\n' >> "$NUSPEC_FILE"
+          printf '    <file src="docs\\README.md" target="docs\\" />\n' >> "$NUSPEC_FILE"
+          printf '    <!-- Runtime native libraries -->\n' >> "$NUSPEC_FILE"
+
           echo "Building files section for platforms:"
           for platform in "${UPDATED_PLATFORMS[@]}"; do
             echo "  - $platform"
@@ -255,12 +255,13 @@ jobs:
               continue
             fi
             
-            echo "    <file src=\"runtimes\\${platform}\\native\\*.${ext}\" target=\"runtimes\\${platform}\\native\\" />" >> "$NUSPEC_FILE"
+            # Append runtime file entries safely
+            printf '    <file src="runtimes\\%s\\native\\*.%s" target="runtimes\\%s\\native\\" />\n' "$platform" "$ext" "$platform" >> "$NUSPEC_FILE"
           done
           
           # Close files section and package
-          echo "  </files>" >> "$NUSPEC_FILE"
-          echo "</package>" >> "$NUSPEC_FILE"
+          printf '  </files>\n' >> "$NUSPEC_FILE"
+          printf '</package>\n' >> "$NUSPEC_FILE"
           
           echo "✓ Updated nuspec to version $VERSION with dynamic files section"
 
