@@ -56,7 +56,7 @@ jobs:
       shell: cmd 
     - name: Code Signing (Windows)
       run: |
-        nuget sign TeleTrain.sqlean.nupkg -CertificateFingerprint ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }} -Timestamper http://timestamp.digicert.com -TimestampHashAlgorithm SHA256 -HashAlgorithm SHA256
+        nuget sign TeleTrain.sqlean.nupkg -CertificateFingerprint ${{ secrets.SM_CODE_SIGNING_CERT_SHA256_HASH }} -Timestamper http://timestamp.digicert.com -TimestampHashAlgorithm SHA256 -HashAlgorithm SHA256
     - name: Verify Package Signature
       run: |
         nuget verify -Signatures TeleTrain.sqlean.nupkg
