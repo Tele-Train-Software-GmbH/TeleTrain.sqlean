@@ -2,14 +2,14 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
   <metadata>
     <id>TeleTrain.sqlean</id>
-    <version>0.28.1</version>
+    <version>0.28.1.1</version>
     <authors>TeleTrain</authors>
     <owners>TeleTrain</owners>
     <requireLicenseAcceptance>true</requireLicenseAcceptance>
     <license type="expression">MIT</license>
     <projectUrl>https://github.com/Tele-Train-Software-GmbH/TeleTrain.sqlean</projectUrl>
     <description>A simple NuGet Package wrapping SQLite sqlean extension libraries for easier usage within dotnet.</description>
-    <releaseNotes>Updated to sqlean 0.28.1. See https://github.com/nalgeon/sqlean/releases/tag/0.28.1 for details.</releaseNotes>
+    <releaseNotes>Patched Linux build for sqlean 0.28.1 (musl toolchain). See https://github.com/nalgeon/sqlean/releases/tag/0.28.1 for upstream notes.</releaseNotes>
     <copyright>Copyright 2024</copyright>
     <tags>SQLite sqlean</tags>
     <readme>docs\README.md</readme>
